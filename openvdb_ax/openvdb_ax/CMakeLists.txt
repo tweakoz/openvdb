@@ -106,7 +106,9 @@ find_package(LLVM REQUIRED)
 find_library(found_LLVM LLVM HINTS ${LLVM_LIBRARY_DIRS})
 
 if(found_LLVM)
-  set(LLVM_LIBS "LLVM")
+  llvm_map_components_to_libnames(_llvm_libs
+    native core executionengine support mcjit passes analysis codegen target transformutils vectorize aggressiveinstcombine instcombine globalisel ipo scalaropts  instrumentation )
+  set(LLVM_LIBS "${_llvm_libs}")
 else()
   llvm_map_components_to_libnames(_llvm_libs
     native core executionengine support mcjit passes)
