@@ -72,6 +72,13 @@ namespace
 inline std::unique_ptr<llvm::ExecutionEngine>
 initializeExecutionEngine(std::unique_ptr<llvm::Module> M, Logger& logger)
 {
+    // toz maybe this should go in program initializing the EE ?
+    LLVMInitializeAllTargetInfos();
+    LLVMInitializeAllTargets();
+    LLVMInitializeAllTargetMCs();
+    LLVMInitializeAllAsmParsers();
+    LLVMInitializeAllAsmPrinters();
+
     // This handles MARCH (i.e. we don't need to set it on the EngineBuilder)
     M->setTargetTriple(llvm::sys::getDefaultTargetTriple());
     llvm::Module* module = M.get();
