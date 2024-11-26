@@ -105,15 +105,9 @@ endif()
 find_package(LLVM REQUIRED)
 find_library(found_LLVM LLVM HINTS ${LLVM_LIBRARY_DIRS})
 
-if(found_LLVM)
-  llvm_map_components_to_libnames(_llvm_libs
-    native core executionengine support mcjit passes analysis codegen target transformutils vectorize aggressiveinstcombine instcombine globalisel ipo scalaropts  instrumentation )
-  set(LLVM_LIBS "${_llvm_libs}")
-else()
-  llvm_map_components_to_libnames(_llvm_libs
-    native core executionengine support mcjit passes)
-  set(LLVM_LIBS "${_llvm_libs}")
-endif()
+llvm_map_components_to_libnames(_llvm_libs
+  native core executionengine support mcjit passes analysis codegen target transformutils vectorize aggressiveinstcombine instcombine globalisel ipo scalaropts  instrumentation )
+set(LLVM_LIBS "${_llvm_libs}")
 
 if(LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL 16.0.0)
   # https://llvm.org/docs/OpaquePointers.html
