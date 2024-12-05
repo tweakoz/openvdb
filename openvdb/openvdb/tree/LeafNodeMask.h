@@ -732,6 +732,11 @@ public:
     bool isChildMaskOn(Index) const { return false; } // leaf nodes have no children
     bool isChildMaskOff(Index) const { return true; }
     bool isChildMaskOff() const { return true; }
+
+    void setVersion(int version) { _version.store(version); }
+    int getVersion() const { return _version.load(); }
+    int incVersion() { return _version.fetch_add(1); }
+
 protected:
     void setValueMask(Index n, bool on) { mBuffer.mData.set(n, on); }
     void setValueMaskOn(Index n)  { mBuffer.mData.setOn(n); }
@@ -746,7 +751,7 @@ protected:
     Coord mOrigin;
     /// Transient data (not serialized)
     Index32 mTransientData = 0;
-
+    std::atomic<int> _version = 0;
 private:
     /// @brief During topology-only construction, access is needed
     /// to protected/private members of other template instances.

@@ -888,6 +888,11 @@ public:
     bool isChildMaskOn(Index) const { return false; } // leaf nodes have no children
     bool isChildMaskOff(Index) const { return true; }
     bool isChildMaskOff() const { return true; }
+
+    void setVersion(int version) { _version.store(version); }
+    int getVersion() const { return _version.load(); }
+    int incVersion() { return _version.fetch_add(1); }
+
 protected:
     void setValueMask(Index n, bool on) { mValueMask.set(n, on); }
     void setValueMaskOn(Index n)  { mValueMask.setOn(n); }
@@ -907,6 +912,8 @@ private:
     Coord mOrigin;
     /// Transient data (not serialized)
     Index32 mTransientData = 0;
+
+    std::atomic<int> _version = 0;
 }; // end of LeafNode class
 
 
