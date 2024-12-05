@@ -886,7 +886,7 @@ public:
         hash |= uint64_t((mOrigin[0]+8192)&0x3FFF);
         hash |= uint64_t((mOrigin[1]+8192)&0x3FFF)<<14;
         hash |= uint64_t((mOrigin[2]+8192)&0x3FFF)<<28;
-        hash |= uint64_t(_version.load()&0xFFFF)<<42;
+        //hash |= uint64_t(_version.load()&0xFFFF)<<42;
         return hash;
     }
 
