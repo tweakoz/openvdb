@@ -20,7 +20,7 @@
 #include <tbb/parallel_for.h>
 #include <memory>
 #include <type_traits>
-
+#include <functional>
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
@@ -880,6 +880,21 @@ public:
         return mask;
     }
     const UnionType* getTable() const { return mNodes; }
+
+
+    void setVersion(int version) { _version.store(version); }
+    int getVersion() const { return _version.load(); }
+    int incVersion() { return _version.fetch_add(1); }
+
+    inline uint64_t hash() const {
+        uint64_t hash = 0;
+        hash |= uint64_t((mOrigin[0]+8192)&0x3FFF);
+        hash |= uint64_t((mOrigin[1]+8192)&0x3FFF)<<14;
+        hash |= uint64_t((mOrigin[2]+8192)&0x3FFF)<<28;
+        //hash |= uint64_t(_version.load()&0xFFFF)<<42;
+        return hash;
+    }
+
 protected:
     //@{
     /// Use a mask accessor to ensure consistency between the child and value masks;
@@ -917,6 +932,8 @@ protected:
     Coord mOrigin;
     /// Transient data (not serialized)
     Index32 mTransientData = 0;
+    std::atomic<int> _version = 0;
+
 }; // class InternalNode
 
 
@@ -987,6 +1004,7 @@ struct InternalNode<ChildT, Log2Dim>::DeepCopy
                 t->mNodes[i].setValue(ValueType(s->mNodes[i].getValue()));
             } else {
                 t->mNodes[i].setChild(new ChildNodeType(*(s->mNodes[i].getChild())));
+                t->mNodes[i].setVersion(s->mNodes[i].getVersion());
             }
         }
     }
@@ -1035,6 +1053,7 @@ struct InternalNode<ChildT, Log2Dim>::TopologyCopy1
                                                         b, TopologyCopy()));
             } else {
                 t->mNodes[i].setValue(b);
+                t->mNodes[i].incVersion();
             }
         }
     }
@@ -1070,6 +1089,7 @@ struct InternalNode<ChildT, Log2Dim>::TopologyCopy2
             if (s->isChildMaskOn(i)) {
                 t->mNodes[i].setChild(new ChildNodeType(*(s->mNodes[i].getChild()),
                                                         offV, onV, TopologyCopy()));
+                t->mNodes[i].setVersion(s->mNodes[i].getVersion());
             } else {
                 t->mNodes[i].setValue(s->isValueMaskOn(i) ? onV : offV);
             }
@@ -1865,6 +1885,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValueOff(const Coord& xyz)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild && this->isValueMaskOn(n)) {
@@ -1881,6 +1902,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValueOn(const Coord& xyz)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild && !this->isValueMaskOn(n)) {
@@ -1897,6 +1919,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValueOff(const Coord& xyz, const ValueType& value)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -1918,6 +1941,7 @@ inline void
 InternalNode<ChildT, Log2Dim>::setValueOffAndCache(const Coord& xyz,
     const ValueType& value, AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -1942,6 +1966,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValueOn(const Coord& xyz, const ValueType& value)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -1963,6 +1988,7 @@ inline void
 InternalNode<ChildT, Log2Dim>::setValueAndCache(const Coord& xyz,
     const ValueType& value, AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -1986,6 +2012,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValueOnly(const Coord& xyz, const ValueType& value)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild && !math::isExactlyEqual(mNodes[n].getValue(), value)) {
@@ -2004,6 +2031,7 @@ inline void
 InternalNode<ChildT, Log2Dim>::setValueOnlyAndCache(const Coord& xyz,
                                                     const ValueType& value, AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild && !math::isExactlyEqual(mNodes[n].getValue(), value)) {
@@ -2024,6 +2052,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setActiveState(const Coord& xyz, bool on)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2043,6 +2072,7 @@ template<typename AccessorT>
 inline void
 InternalNode<ChildT, Log2Dim>::setActiveStateAndCache(const Coord& xyz, bool on, AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = this->coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2066,6 +2096,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::setValuesOn()
 {
+    _version.fetch_add(1);
     mValueMask = !mChildMask;
     for (ChildOnIter iter = this->beginChildOn(); iter; ++iter) {
         mNodes[iter.pos()].getChild()->setValuesOn();
@@ -2078,6 +2109,7 @@ template<typename ModifyOp>
 inline void
 InternalNode<ChildT, Log2Dim>::modifyValue(const Coord& xyz, const ModifyOp& op)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2107,6 +2139,7 @@ inline void
 InternalNode<ChildT, Log2Dim>::modifyValueAndCache(const Coord& xyz, const ModifyOp& op,
     AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2140,6 +2173,7 @@ template<typename ModifyOp>
 inline void
 InternalNode<ChildT, Log2Dim>::modifyValueAndActiveState(const Coord& xyz, const ModifyOp& op)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2164,6 +2198,7 @@ inline void
 InternalNode<ChildT, Log2Dim>::modifyValueAndActiveStateAndCache(
     const Coord& xyz, const ModifyOp& op, AccessorT& acc)
 {
+    _version.fetch_add(1);
     const Index n = InternalNode::coordToOffset(xyz);
     bool hasChild = this->isChildMaskOn(n);
     if (!hasChild) {
@@ -2194,6 +2229,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::clip(const CoordBBox& clipBBox, const ValueType& background)
 {
+    _version.fetch_add(1);
     CoordBBox nodeBBox = this->getNodeBoundingBox();
     if (!clipBBox.hasOverlap(nodeBBox)) {
         // This node lies completely outside the clipping region.  Fill it with background tiles.
@@ -2244,6 +2280,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::fill(const CoordBBox& bbox, const ValueType& value, bool active)
 {
+    _version.fetch_add(1);
     auto clippedBBox = this->getNodeBoundingBox();
     clippedBBox.intersect(bbox);
     if (!clippedBBox) return;
@@ -2300,6 +2337,7 @@ template<typename ChildT, Index Log2Dim>
 inline void
 InternalNode<ChildT, Log2Dim>::denseFill(const CoordBBox& bbox, const ValueType& value, bool active)
 {
+    _version.fetch_add(1);
     auto clippedBBox = this->getNodeBoundingBox();
     clippedBBox.intersect(bbox);
     if (!clippedBBox) return;
