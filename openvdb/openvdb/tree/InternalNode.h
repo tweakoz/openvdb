@@ -932,7 +932,7 @@ protected:
     Coord mOrigin;
     /// Transient data (not serialized)
     Index32 mTransientData = 0;
-    std::atomic<int> _version = 0;
+    CopyableAtomicInt _version{0};
 
 }; // class InternalNode
 

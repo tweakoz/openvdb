@@ -44,6 +44,10 @@ public:
     ValueT& getValue() { return mValue; }
     void setValue(const ValueT& val) { mValue = val; }
 
+    inline void setVersion(int version) { if(mChild) mChild->setVersion(version); }
+    inline int incVersion() { return mChild ? mChild->incVersion() : -1; }
+    inline int getVersion() const { return mChild ? mChild->getVersion() : -1; }
+
     // Small check to ensure this class isn't
     // selected for some expected types
     static_assert(!ValueTraits<ValueT>::IsVec &&
@@ -72,6 +76,11 @@ public:
     const ValueT& getValue() const { return mValue; }
     ValueT& getValue() { return mValue; }
     void setValue(const ValueT& val) { mValue = val; }
+
+    inline void setVersion(int version) { if(mChild) mChild->setVersion(version); }
+    inline int incVersion() { return mChild ? mChild->incVersion() : -1; }
+    inline int getVersion() const { return mChild ? mChild->getVersion() : -1; }
+
 };
 
 

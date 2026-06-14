@@ -8,6 +8,8 @@
 #include "Platform.h"
 #include "TypeList.h" // backwards compat
 
+#include <atomic>
+
 #include <openvdb/math/HalfDecl.h>
 
 #include <openvdb/math/Math.h>
@@ -27,6 +29,21 @@
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
+
+// Copyable wrapper around std::atomic<int> used by tree node version counters.
+// std::atomic is non-copyable, which would implicitly delete the default copy
+// ops on any enclosing node class. This wrapper copies via load/store so that
+// LeafNode/InternalNode can retain `= default` copy semantics.
+struct CopyableAtomicInt {
+    std::atomic<int> v{0};
+    CopyableAtomicInt() = default;
+    CopyableAtomicInt(int x) : v(x) {}
+    CopyableAtomicInt(const CopyableAtomicInt& o) : v(o.v.load()) {}
+    CopyableAtomicInt& operator=(const CopyableAtomicInt& o) { v.store(o.v.load()); return *this; }
+    int  load() const          { return v.load(); }
+    void store(int x)          { v.store(x); }
+    int  fetch_add(int x)      { return v.fetch_add(x); }
+};
 
 // One-dimensional scalar types
 using Index32 = uint32_t;
